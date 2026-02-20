@@ -1741,63 +1741,54 @@ function playMetro() {
   }
 }
 
-// ── Tribal drum: single hit synthesizer ──────────────────────────────────────
-// accent=true → big BUM, false → small bum/ba
-function tribalHit(offsetSec, vol, pitchHz, accent) {
-  const ctx = getCtx();
-  const t = ctx.currentTime + offsetSec;
-  const decay = accent ? 0.32 : 0.18;
-  const noiseLen = accent ? 0.38 : 0.22;
+// ── Frame drum hit synthesizer ───────────────────────────────────────────────
+// accent=true  → deep resonant ONE (full volume, low boom, long decay)
+// accent=false → ghost stroke  (very soft, higher, quick decay)
+function frameDrumHit(offsetMs, accent) {
+  const id = setTimeout(() => {
+    if (!document.getElementById('tog-metro').checked) return;
+    const ctx = getCtx();
+    const t = ctx.currentTime;
 
-  // Noise membrane layer
-  const bufLen = Math.floor(ctx.sampleRate * noiseLen);
-  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-  const d = buf.getChannelData(0);
-  for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
-  const src = ctx.createBufferSource();
-  const lp = ctx.createBiquadFilter();
-  const gn = ctx.createGain();
-  lp.type = 'lowpass';
-  lp.frequency.value = accent ? 300 : 220;
-  lp.Q.value = 1.6;
-  src.buffer = buf;
-  src.connect(lp); lp.connect(gn); gn.connect(ctx.destination);
-  gn.gain.setValueAtTime(vol * 0.9, t);
-  gn.gain.exponentialRampToValueAtTime(0.001, t + decay);
-  src.start(t); src.stop(t + noiseLen);
+    const vol    = accent ? 0.90 : 0.12;   // ghost strokes very quiet
+    const pitchA = accent ? 90  : 110;      // accent lower, ghost slightly higher
+    const pitchB = accent ? 44  : 70;       // pitch drop target
+    const decay  = accent ? 0.38 : 0.14;   // accent longer sustain
+    const lpFreq = accent ? 320  : 260;     // accent more low-end
 
-  // Tonal boom layer (pitched sine)
-  const osc = ctx.createOscillator();
-  const go = ctx.createGain();
-  osc.connect(go); go.connect(ctx.destination);
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(pitchHz, t);
-  osc.frequency.exponentialRampToValueAtTime(pitchHz * 0.5, t + decay);
-  go.gain.setValueAtTime(vol * 0.65, t);
-  go.gain.exponentialRampToValueAtTime(0.001, t + decay * 0.9);
-  osc.start(t); osc.stop(t + decay + 0.02);
+    // ── Noise membrane ──────────────────────────────────────────────
+    const nLen = Math.floor(ctx.sampleRate * (accent ? 0.40 : 0.16));
+    const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+    const nd   = nBuf.getChannelData(0);
+    for (let i = 0; i < nLen; i++) nd[i] = Math.random() * 2 - 1;
+    const nSrc = ctx.createBufferSource();
+    const nLp  = ctx.createBiquadFilter();
+    const nG   = ctx.createGain();
+    nLp.type = 'lowpass'; nLp.frequency.value = lpFreq; nLp.Q.value = 1.4;
+    nSrc.buffer = nBuf;
+    nSrc.connect(nLp); nLp.connect(nG); nG.connect(ctx.destination);
+    nG.gain.setValueAtTime(vol * 0.85, t);
+    nG.gain.exponentialRampToValueAtTime(0.001, t + decay);
+    nSrc.start(t); nSrc.stop(t + decay + 0.02);
 
-  // Rim click (accent only — subtle woody snap)
-  if (accent) {
-    const rbuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
-    const rd = rbuf.getChannelData(0);
-    for (let i = 0; i < rd.length; i++) rd[i] = Math.random() * 2 - 1;
-    const rsrc = ctx.createBufferSource();
-    const rbp = ctx.createBiquadFilter();
-    const rg = ctx.createGain();
-    rbp.type = 'bandpass'; rbp.frequency.value = 1100; rbp.Q.value = 5;
-    rsrc.buffer = rbuf;
-    rsrc.connect(rbp); rbp.connect(rg); rg.connect(ctx.destination);
-    rg.gain.setValueAtTime(0.14, t);
-    rg.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-    rsrc.start(t); rsrc.stop(t + 0.05);
-  }
+    // ── Tonal body resonance (sine pitch-drop) ──────────────────────
+    const osc = ctx.createOscillator();
+    const oG  = ctx.createGain();
+    osc.connect(oG); oG.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(pitchA, t);
+    osc.frequency.exponentialRampToValueAtTime(pitchB, t + decay);
+    oG.gain.setValueAtTime(vol * 0.70, t);
+    oG.gain.exponentialRampToValueAtTime(0.001, t + decay * 0.85);
+    osc.start(t); osc.stop(t + decay + 0.02);
+
+  }, offsetMs);
+  if (offsetMs > 0) drumPhraseTimers.push(id);
 }
 
-// ── Full tribal pattern: BUM-bum-ba-bum-bum-BUM ──────────────────────────────
-// Pattern fires as a self-contained phrase each time playTribalDrum() is called.
-// The phrase is ~2.4s; in "Follow Pace" mode it fires once per breath cycle.
-// In "Manual" mode the session metro timer fires it at the chosen interval.
+// ── Pattern: ONE two three four five  (5-count, ~2.3s cycle, ≈26 BPM) ────────
+// Beat 1 = deep resonant accent; beats 2-5 = barely-audible ghost strokes
+// 5 evenly-spaced hits: 0, 460, 920, 1380, 1840 ms
 let drumPhraseTimers = [];
 
 function clearDrumPhrase() {
@@ -1806,34 +1797,13 @@ function clearDrumPhrase() {
 }
 
 function playTribalDrum() {
-  clearDrumPhrase(); // cancel any overlapping previous phrase
-
-  // BUM-bum-ba-bum-bum-BUM-bum-ba-bum-bum (two half-phrases per cycle)
-  // Each entry: [offset_ms, volume, pitch_hz, is_accent]
-  const pattern = [
-    [0,    1.00, 86, true ],  // BUM  — strong accent
-    [300,  0.36, 70, false],  // bum  — quick follow
-    [480,  0.20, 64, false],  // ba   — softest, fastest ghost
-    [700,  0.40, 72, false],  // bum
-    [1000, 0.32, 68, false],  // bum  — trailing off
-    [1300, 0.92, 88, true ],  // BUM  — second accent (half-phrase)
-    [1600, 0.34, 70, false],  // bum
-    [1800, 0.18, 63, false],  // ba   — very soft ghost
-    [2050, 0.38, 72, false],  // bum
-    [2280, 0.28, 67, false],  // bum  — fade into next cycle
-  ];
-
-  pattern.forEach(([offsetMs, vol, pitch, accent]) => {
-    if (offsetMs === 0) {
-      tribalHit(0, vol, pitch, accent);
-    } else {
-      const id = setTimeout(() => {
-        if (!document.getElementById('tog-metro').checked) return;
-        tribalHit(0, vol, pitch, accent);
-      }, offsetMs);
-      drumPhraseTimers.push(id);
-    }
-  });
+  clearDrumPhrase();
+  const step = 460; // ms between each of 5 beats
+  frameDrumHit(0,          true);   // ONE  — accent
+  frameDrumHit(step * 1,   false);  // two  — ghost
+  frameDrumHit(step * 2,   false);  // three
+  frameDrumHit(step * 3,   false);  // four
+  frameDrumHit(step * 4,   false);  // five
 }
 
 function playBell() {
