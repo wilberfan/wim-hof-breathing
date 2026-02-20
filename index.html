@@ -905,6 +905,99 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
   border: 1px solid var(--border);
   pointer-events: none;
 }
+
+/* Preview & Upload */
+.preview-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.preview-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-mid);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex: 1;
+  justify-content: center;
+}
+.preview-btn:active { background: var(--accent2); color: var(--accent); border-color: var(--accent2); }
+.preview-btn.playing { background: var(--accent2); color: var(--accent); border-color: var(--accent); animation: pulse-border 1s ease-in-out infinite; }
+@keyframes pulse-border {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,201,255,0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(0,201,255,0.1); }
+}
+
+.upload-area {
+  margin-top: 12px;
+  border: 1.5px dashed var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  position: relative;
+}
+.upload-area:hover, .upload-area.drag-over {
+  border-color: var(--accent2);
+  background: rgba(0,201,255,0.04);
+}
+.upload-area input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+}
+.upload-icon { font-size: 1.4rem; margin-bottom: 4px; }
+.upload-text {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  line-height: 1.5;
+}
+.upload-text strong { color: var(--accent); font-weight: 700; }
+
+.custom-sound-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: var(--surface2);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.custom-sound-name {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Share Tech Mono', monospace;
+}
+.custom-sound-clear {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+.custom-sound-clear:active { color: var(--warm); }
 </style>
 </head>
 <body>
@@ -935,6 +1028,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
 
 
   <!-- STREAK BANNER -->
+  <!-- STREAK DATE PICKER MODAL -->
+  <div id="streak-modal" style="display:none;position:fixed;inset:0;z-index:8888;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:24px;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;width:100%;max-width:340px;">
+      <div style="font-size:0.65rem;font-weight:700;letter-spacing:0.25em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;">Streak Start Date</div>
+      <div style="font-size:0.9rem;color:var(--text);margin-bottom:16px;line-height:1.5;">Enter the date you started your daily practice:</div>
+      <input type="date" id="streak-date-input"
+        style="width:100%;padding:12px 14px;background:var(--surface2);border:1px solid var(--accent2);border-radius:10px;color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:1rem;outline:none;margin-bottom:16px;"
+        max="">
+      <div style="display:flex;gap:10px;">
+        <button onclick="cancelStreakModal()" style="flex:1;padding:13px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text-dim);font-family:'Rajdhani',sans-serif;font-size:0.9rem;font-weight:700;letter-spacing:0.1em;cursor:pointer;">Cancel</button>
+        <button onclick="saveStreakStart()" style="flex:1;padding:13px;background:var(--accent);border:none;border-radius:10px;color:#000;font-family:'Rajdhani',sans-serif;font-size:0.9rem;font-weight:800;letter-spacing:0.1em;cursor:pointer;">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div id="streak-banner">
     <div class="streak-left">
       <div class="streak-flame" id="streak-flame">&#128293;</div>
@@ -943,9 +1051,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
         <div class="streak-label">Consecutive Streak</div>
       </div>
     </div>
-    <div class="streak-right">
-      <div class="streak-since">Since</div>
-      <div class="streak-date" id="streak-since-date">Oct 31, 2024</div>
+    <div class="streak-right" onclick="openStreakModal()" style="cursor:pointer;" title="Tap to change start date">
+      <div class="streak-since">Since ✏️</div>
+      <div class="streak-date" id="streak-since-date">—</div>
     </div>
     <button class="streak-log-btn" id="streak-log-btn" onclick="logTodayManual()">Log Today</button>
   </div>
@@ -1083,6 +1191,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
           <button class="seg-btn active" id="ms-click" onclick="setMetroSound('click')">Click</button>
           <button class="seg-btn" id="ms-heartbeat" onclick="setMetroSound('heartbeat')">Heartbeat</button>
           <button class="seg-btn" id="ms-soft" onclick="setMetroSound('soft')">Soft Tone</button>
+          <button class="seg-btn" id="ms-custom" onclick="setMetroSound('custom')">Custom</button>
+        </div>
+        <div class="preview-row">
+          <button class="preview-btn" id="prev-metro-click" onclick="previewMetro('click')">▶ Click</button>
+          <button class="preview-btn" id="prev-metro-heartbeat" onclick="previewMetro('heartbeat')">▶ Heartbeat</button>
+          <button class="preview-btn" id="prev-metro-soft" onclick="previewMetro('soft')">▶ Soft Tone</button>
+        </div>
+        <div class="divider"></div>
+        <div class="card-label" style="margin-bottom:6px;">Custom Metronome Sound</div>
+        <div class="upload-area" id="upload-metro-area">
+          <input type="file" accept="audio/*" onchange="handleCustomUpload('metro', this)">
+          <div class="upload-icon">🎵</div>
+          <div class="upload-text">Tap to upload audio file<br><strong>MP3, WAV, OGG, M4A</strong> supported</div>
+        </div>
+        <div class="custom-sound-row" id="custom-metro-row" style="display:none;">
+          <span class="custom-sound-name" id="custom-metro-name">—</span>
+          <button class="preview-btn" style="flex:none;padding:6px 10px;" onclick="previewCustom('metro')">▶</button>
+          <button class="custom-sound-clear" onclick="clearCustomSound('metro')" title="Remove">✕</button>
         </div>
       </div>
 
@@ -1102,6 +1228,35 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
           <button class="seg-btn active" id="bs-ocean" onclick="setBreathSound('ocean')">Ocean</button>
           <button class="seg-btn" id="bs-wind" onclick="setBreathSound('wind')">Wind</button>
           <button class="seg-btn" id="bs-nose" onclick="setBreathSound('nose')">Nose</button>
+          <button class="seg-btn" id="bs-custom" onclick="setBreathSound('custom')">Custom</button>
+        </div>
+        <div class="preview-row">
+          <button class="preview-btn" onclick="previewBreath('ocean')">▶ Ocean</button>
+          <button class="preview-btn" onclick="previewBreath('wind')">▶ Wind</button>
+          <button class="preview-btn" onclick="previewBreath('nose')">▶ Nose</button>
+        </div>
+        <div class="divider"></div>
+        <div class="card-label" style="margin-bottom:6px;">Custom Inhale Sound</div>
+        <div class="upload-area" id="upload-inhale-area">
+          <input type="file" accept="audio/*" onchange="handleCustomUpload('inhale', this)">
+          <div class="upload-icon">😮‍💨</div>
+          <div class="upload-text">Tap to upload inhale sound<br><strong>MP3, WAV, OGG, M4A</strong> supported</div>
+        </div>
+        <div class="custom-sound-row" id="custom-inhale-row" style="display:none;">
+          <span class="custom-sound-name" id="custom-inhale-name">—</span>
+          <button class="preview-btn" style="flex:none;padding:6px 10px;" onclick="previewCustom('inhale')">▶</button>
+          <button class="custom-sound-clear" onclick="clearCustomSound('inhale')" title="Remove">✕</button>
+        </div>
+        <div class="card-label" style="margin-bottom:6px;margin-top:12px;">Custom Exhale Sound</div>
+        <div class="upload-area" id="upload-exhale-area">
+          <input type="file" accept="audio/*" onchange="handleCustomUpload('exhale', this)">
+          <div class="upload-icon">💨</div>
+          <div class="upload-text">Tap to upload exhale sound<br><strong>MP3, WAV, OGG, M4A</strong> supported</div>
+        </div>
+        <div class="custom-sound-row" id="custom-exhale-row" style="display:none;">
+          <span class="custom-sound-name" id="custom-exhale-name">—</span>
+          <button class="preview-btn" style="flex:none;padding:6px 10px;" onclick="previewCustom('exhale')">▶</button>
+          <button class="custom-sound-clear" onclick="clearCustomSound('exhale')" title="Remove">✕</button>
         </div>
       </div>
 
@@ -1123,6 +1278,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
           <label class="check-row"><input type="checkbox" id="bell-30" checked><span class="check-label">30 seconds</span></label>
           <label class="check-row"><input type="checkbox" id="bell-60" checked><span class="check-label">60 seconds</span></label>
           <label class="check-row"><input type="checkbox" id="bell-90"><span class="check-label">90 seconds</span></label>
+        </div>
+        <div class="preview-row" style="margin-top:12px;">
+          <button class="preview-btn" onclick="previewBell()">▶ Preview Bell</button>
+        </div>
+        <div class="divider"></div>
+        <div class="card-label" style="margin-bottom:6px;">Custom Bell Sound</div>
+        <div class="upload-area">
+          <input type="file" accept="audio/*" onchange="handleCustomUpload('bell', this)">
+          <div class="upload-icon">🔔</div>
+          <div class="upload-text">Tap to upload a bell sound<br><strong>MP3, WAV, OGG, M4A</strong> supported</div>
+        </div>
+        <div class="custom-sound-row" id="custom-bell-row" style="display:none;">
+          <span class="custom-sound-name" id="custom-bell-name">—</span>
+          <button class="preview-btn" style="flex:none;padding:6px 10px;" onclick="previewCustom('bell')">▶</button>
+          <button class="custom-sound-clear" onclick="clearCustomSound('bell')" title="Remove">✕</button>
         </div>
       </div>
 
@@ -1814,6 +1984,204 @@ function resetSession() {
 }
 
 // ============================================================
+// CUSTOM SOUNDS & PREVIEWS
+// ============================================================
+
+// Storage keys
+const CS_KEYS = { metro: 'wh_custom_metro', inhale: 'wh_custom_inhale', exhale: 'wh_custom_exhale', bell: 'wh_custom_bell' };
+const CS_NAME_KEYS = { metro: 'wh_custom_metro_name', inhale: 'wh_custom_inhale_name', exhale: 'wh_custom_exhale_name', bell: 'wh_custom_bell_name' };
+
+// In-memory decoded audio buffers for custom sounds
+const customBuffers = { metro: null, inhale: null, exhale: null, bell: null };
+
+function loadCustomSoundsFromStorage() {
+  Object.keys(CS_KEYS).forEach(key => {
+    const b64 = localStorage.getItem(CS_KEYS[key]);
+    const name = localStorage.getItem(CS_NAME_KEYS[key]);
+    if (b64 && name) {
+      showCustomRow(key, name);
+      // Decode into audio buffer async
+      const binary = atob(b64.split(',')[1] || b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      getCtx().decodeAudioData(bytes.buffer.slice(0)).then(buf => {
+        customBuffers[key] = buf;
+      }).catch(() => {});
+    }
+  });
+}
+
+function handleCustomUpload(key, input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    alert('File too large — please use a file under 5 MB.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    const b64 = e.target.result;
+    // Decode audio
+    const binary = atob(b64.split(',')[1]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    getCtx().decodeAudioData(bytes.buffer.slice(0)).then(buf => {
+      customBuffers[key] = buf;
+      try {
+        localStorage.setItem(CS_KEYS[key], b64);
+        localStorage.setItem(CS_NAME_KEYS[key], file.name);
+      } catch(e) {
+        alert('Storage full — file saved for this session only.');
+      }
+      showCustomRow(key, file.name);
+      // Auto-select custom mode
+      if (key === 'metro') setMetroSound('custom');
+      if (key === 'inhale' || key === 'exhale') setBreathSound('custom');
+      if (key === 'bell') { /* bell uses custom automatically if buffer present */ }
+    }).catch(() => {
+      alert('Could not decode audio file. Please try a different format.');
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function showCustomRow(key, name) {
+  const row = document.getElementById('custom-' + key + '-row');
+  const nameEl = document.getElementById('custom-' + key + '-name');
+  if (row) row.style.display = 'flex';
+  if (nameEl) nameEl.textContent = name;
+}
+
+function clearCustomSound(key) {
+  customBuffers[key] = null;
+  localStorage.removeItem(CS_KEYS[key]);
+  localStorage.removeItem(CS_NAME_KEYS[key]);
+  const row = document.getElementById('custom-' + key + '-row');
+  if (row) row.style.display = 'none';
+  // Revert to built-in if custom was selected
+  if (key === 'metro' && S.metroSound === 'custom') setMetroSound('click');
+  if ((key === 'inhale' || key === 'exhale') && S.breathSound === 'custom') setBreathSound('ocean');
+}
+
+function playCustomBuffer(key) {
+  const buf = customBuffers[key];
+  if (!buf) return false;
+  const ctx = getCtx();
+  const src = ctx.createBufferSource();
+  const g = ctx.createGain();
+  src.buffer = buf;
+  src.connect(g); g.connect(ctx.destination);
+  g.gain.value = 0.85;
+  src.start();
+  // Stop after 3s for preview
+  setTimeout(() => { try { src.stop(); } catch(e){} }, 3000);
+  return true;
+}
+
+function previewCustom(key) {
+  if (!customBuffers[key]) { alert('No custom sound loaded for ' + key + '.'); return; }
+  playCustomBuffer(key);
+}
+
+// Preview built-in metronome sounds
+let previewMetroTimer = null;
+function previewMetro(type) {
+  getCtx();
+  clearTimeout(previewMetroTimer);
+  // Flash the button
+  document.querySelectorAll('[id^="prev-metro"]').forEach(b => b.classList.remove('playing'));
+  const btn = document.getElementById('prev-metro-' + type);
+  if (btn) btn.classList.add('playing');
+
+  const origSound = S.metroSound;
+  S.metroSound = type;
+  document.getElementById('tog-metro').checked = true;
+
+  // Play 4 beats
+  let count = 0;
+  const pace = PACE[S.pace];
+  const interval = (pace.in + pace.out) / 2;
+  const tick = () => {
+    playMetro();
+    count++;
+    if (count < 4) previewMetroTimer = setTimeout(tick, Math.min(interval, 800));
+    else {
+      previewMetroTimer = setTimeout(() => {
+        if (btn) btn.classList.remove('playing');
+        S.metroSound = origSound;
+      }, 600);
+    }
+  };
+  tick();
+}
+
+// Preview breath sounds (2s inhale + 1.5s exhale)
+function previewBreath(type) {
+  getCtx();
+  const orig = S.breathSound;
+  S.breathSound = type;
+  document.getElementById('tog-breath').checked = true;
+  playInhale(1800);
+  setTimeout(() => {
+    playExhale(1400);
+    setTimeout(() => { S.breathSound = orig; }, 1500);
+  }, 1900);
+}
+
+// Preview bell
+function previewBell() {
+  getCtx();
+  if (customBuffers.bell) {
+    playCustomBuffer('bell');
+  } else {
+    playBell();
+  }
+}
+
+// Override playBell to use custom if available
+const _playBellOrig = playBell;
+playBell = function() {
+  if (customBuffers.bell) { playCustomBuffer('bell'); return; }
+  _playBellOrig();
+};
+
+// Override playMetro to support custom
+const _playMetroOrig = playMetro;
+playMetro = function() {
+  if (S.metroSound === 'custom') {
+    if (!customBuffers.metro) return;
+    const ctx = getCtx();
+    const src = ctx.createBufferSource();
+    const g = ctx.createGain();
+    src.buffer = customBuffers.metro;
+    src.connect(g); g.connect(ctx.destination);
+    g.gain.value = 0.8;
+    src.start();
+    return;
+  }
+  _playMetroOrig();
+};
+
+// Override breath sounds to support custom
+const _playInhaleOrig = playInhale;
+playInhale = function(durMs) {
+  if (S.breathSound === 'custom') {
+    if (customBuffers.inhale) playCustomBuffer('inhale');
+    return;
+  }
+  _playInhaleOrig(durMs);
+};
+
+const _playExhaleOrig = playExhale;
+playExhale = function(durMs) {
+  if (S.breathSound === 'custom') {
+    if (customBuffers.exhale) playCustomBuffer('exhale');
+    return;
+  }
+  _playExhaleOrig(durMs);
+};
+
+// ============================================================
 // BLANK SCREEN
 // ============================================================
 function showBlank() {
@@ -1862,9 +2230,9 @@ if (location.hash === '#session') showPanel('session');
 // ============================================================
 // STREAK TRACKER
 // ============================================================
-const STREAK_START = '2025-10-31';
-const STREAK_KEY   = 'wh_streak_lastLogged_v2';
+const STREAK_KEY       = 'wh_streak_lastLogged_v2';
 const STREAK_COUNT_KEY = 'wh_streak_count_v2';
+const STREAK_STARTKEY  = 'wh_streak_startDate_v2';
 
 function todayStr() {
   const d = new Date();
@@ -1883,13 +2251,22 @@ function formatStreakDate(str) {
   return months[parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
 }
 
-function loadStreak() {
-  const lastLogged = localStorage.getItem(STREAK_KEY);
-  const savedCount = parseInt(localStorage.getItem(STREAK_COUNT_KEY) || '0');
-  const today = todayStr();
+function getStreakStart() {
+  return localStorage.getItem(STREAK_STARTKEY) || null;
+}
 
+function loadStreak() {
+  const startDate    = getStreakStart();
+  const lastLogged   = localStorage.getItem(STREAK_KEY);
+  const savedCount   = parseInt(localStorage.getItem(STREAK_COUNT_KEY) || '0');
+  const today        = todayStr();
+
+  // No start date set yet — need user to configure
+  if (!startDate) return { count: 0, broken: false, loggedToday: false, needsSetup: true };
+
+  // First log ever for this start date
   if (!lastLogged) {
-    const count = daysBetween(STREAK_START, today) + 1;
+    const count = daysBetween(startDate, today) + 1;
     localStorage.setItem(STREAK_KEY, today);
     localStorage.setItem(STREAK_COUNT_KEY, count);
     return { count, broken: false, loggedToday: true };
@@ -1902,8 +2279,9 @@ function loadStreak() {
 }
 
 function logToday() {
-  const today = todayStr();
+  const today   = todayStr();
   const current = loadStreak();
+  if (current.needsSetup) return current;
   if (current.loggedToday && !current.broken) return current;
   const newCount = current.broken ? 1 : current.count + 1;
   localStorage.setItem(STREAK_KEY, today);
@@ -1912,8 +2290,7 @@ function logToday() {
 }
 
 function logTodayManual() {
-  const result = logToday();
-  renderStreak(result);
+  renderStreak(logToday());
 }
 
 function renderStreak(state) {
@@ -1922,6 +2299,17 @@ function renderStreak(state) {
   const btn     = document.getElementById('streak-log-btn');
   const sinceEl = document.getElementById('streak-since-date');
   const flame   = document.getElementById('streak-flame');
+  const startDate = getStreakStart();
+
+  if (state.needsSetup || !startDate) {
+    countEl.innerHTML = '?<span>days</span>';
+    flame.textContent = '\u{1F525}';
+    sinceEl.textContent = 'Set start date';
+    banner.classList.remove('streak-broken');
+    btn.textContent = 'Log Today';
+    btn.classList.remove('logged');
+    return;
+  }
 
   countEl.innerHTML = (state.broken ? 0 : state.count) + '<span>days</span>';
 
@@ -1934,7 +2322,7 @@ function renderStreak(state) {
   } else {
     banner.classList.remove('streak-broken');
     flame.textContent = '\u{1F525}';
-    sinceEl.textContent = formatStreakDate(STREAK_START);
+    sinceEl.textContent = formatStreakDate(startDate);
     if (state.loggedToday) {
       btn.textContent = '\u2713 Logged';
       btn.classList.add('logged');
@@ -1945,8 +2333,39 @@ function renderStreak(state) {
   }
 }
 
-function initStreak() {
+function openStreakModal() {
+  const modal = document.getElementById('streak-modal');
+  const input = document.getElementById('streak-date-input');
+  input.max = todayStr();
+  const existing = getStreakStart();
+  input.value = existing || '';
+  modal.style.display = 'flex';
+}
+
+function cancelStreakModal() {
+  document.getElementById('streak-modal').style.display = 'none';
+}
+
+function saveStreakStart() {
+  const input = document.getElementById('streak-date-input');
+  const val = input.value;
+  if (!val) return;
+  if (daysBetween(val, todayStr()) < 0) { alert('Start date cannot be in the future.'); return; }
+  // Save new start, reset logged state so count recalculates
+  localStorage.setItem(STREAK_STARTKEY, val);
+  localStorage.removeItem(STREAK_KEY);
+  localStorage.removeItem(STREAK_COUNT_KEY);
+  document.getElementById('streak-modal').style.display = 'none';
   renderStreak(loadStreak());
+}
+
+function initStreak() {
+  const state = loadStreak();
+  renderStreak(state);
+  // Show modal on first visit (no start date set)
+  if (state.needsSetup) {
+    setTimeout(openStreakModal, 800);
+  }
 }
 
 // Wrap endSession to auto-log on completion
@@ -1962,6 +2381,7 @@ endSession = function() {
 syncSummary();
 requestWakeLock();
 initStreak();
+loadCustomSoundsFromStorage();
 
 // Prevent default touch behaviors
 document.addEventListener('touchmove', e => {
