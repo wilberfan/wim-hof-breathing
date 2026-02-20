@@ -127,6 +127,30 @@ body::before {
 }
 .header-btn:active { color: var(--accent); }
 
+.blank-icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.55rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text-dim);
+  padding: 6px 8px;
+}
+.blank-icon-btn:active { color: var(--accent); }
+
+.blank-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: var(--text-dim);
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+.blank-icon-btn:active .blank-icon { background: var(--accent); }
+
 /* ============================================================
    SCROLL AREA
    ============================================================ */
@@ -796,6 +820,91 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
   cursor: pointer;
   padding: 4px;
 }
+
+/* ============================================================
+   STREAK BANNER
+   ============================================================ */
+#streak-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: linear-gradient(90deg, rgba(0,60,90,0.7), rgba(0,40,60,0.4));
+  border-bottom: 1px solid var(--border);
+  gap: 12px;
+}
+.streak-left { display: flex; align-items: center; gap: 10px; }
+.streak-flame {
+  font-size: 1.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255,150,50,0.6));
+}
+.streak-info { line-height: 1.2; }
+.streak-count {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.3rem;
+  color: var(--accent);
+  line-height: 1;
+}
+.streak-count span {
+  font-size: 0.68rem;
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-mid);
+  margin-left: 4px;
+}
+.streak-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.streak-right { text-align: right; }
+.streak-since {
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+.streak-date {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-mid);
+}
+#streak-banner.streak-broken {
+  background: linear-gradient(90deg, rgba(90,20,0,0.6), rgba(60,10,0,0.3));
+  border-bottom-color: rgba(255,107,53,0.3);
+}
+#streak-banner.streak-broken .streak-count { color: var(--warm); }
+#streak-banner.streak-broken .streak-flame { filter: grayscale(0.8) opacity(0.5); }
+.streak-log-btn {
+  background: var(--accent2);
+  border: none;
+  border-radius: 8px;
+  color: var(--accent);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.streak-log-btn:active { transform: scale(0.95); }
+.streak-log-btn.logged {
+  background: rgba(0,201,255,0.08);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
 </style>
 </head>
 <body>
@@ -814,7 +923,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
       <div class="app-title">Wim Hof</div>
       <div class="app-subtitle">Breathing Method</div>
     </div>
-    <button class="header-btn" onclick="showBlank()" title="Blank screen">⬛</button>
+    <button class="header-btn blank-icon-btn" onclick="showBlank()" title="Blank screen"><span class="blank-icon"></span>BLANK</button>
   </div>
 
   <!-- INSTALL BANNER -->
@@ -824,6 +933,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
     <button class="install-dismiss" onclick="document.getElementById('install-banner').classList.remove('show')">✕</button>
   </div>
 
+
+  <!-- STREAK BANNER -->
+  <div id="streak-banner">
+    <div class="streak-left">
+      <div class="streak-flame" id="streak-flame">&#128293;</div>
+      <div class="streak-info">
+        <div class="streak-count" id="streak-count">&#8212;<span>days</span></div>
+        <div class="streak-label">Consecutive Streak</div>
+      </div>
+    </div>
+    <div class="streak-right">
+      <div class="streak-since">Since</div>
+      <div class="streak-date" id="streak-since-date">Oct 31, 2024</div>
+    </div>
+    <button class="streak-log-btn" id="streak-log-btn" onclick="logTodayManual()">Log Today</button>
+  </div>
   <!-- SCROLL AREA -->
   <div id="scroll-area">
 
@@ -1124,7 +1249,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
       <div class="session-btns">
         <button class="sess-btn sess-pause" id="btn-pause" onclick="togglePause()">Pause</button>
         <button class="sess-btn sess-stop" onclick="stopSession()">Stop</button>
-        <button class="sess-btn sess-blank" onclick="showBlank()">⬛ Blank</button>
+        <button class="sess-btn sess-blank" onclick="showBlank()">■ Blank</button>
       </div>
     </div>
 
@@ -1735,10 +1860,108 @@ if ('serviceWorker' in navigator) {
 if (location.hash === '#session') showPanel('session');
 
 // ============================================================
+// STREAK TRACKER
+// ============================================================
+const STREAK_START = '2024-10-31';
+const STREAK_KEY   = 'wh_streak_lastLogged';
+const STREAK_COUNT_KEY = 'wh_streak_count';
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth()+1).padStart(2,'0') + '-' +
+    String(d.getDate()).padStart(2,'0');
+}
+
+function daysBetween(a, b) {
+  return Math.round((new Date(b) - new Date(a)) / 86400000);
+}
+
+function formatStreakDate(str) {
+  const [y,m,d] = str.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return months[parseInt(m)-1] + ' ' + parseInt(d) + ', ' + y;
+}
+
+function loadStreak() {
+  const lastLogged = localStorage.getItem(STREAK_KEY);
+  const savedCount = parseInt(localStorage.getItem(STREAK_COUNT_KEY) || '0');
+  const today = todayStr();
+
+  if (!lastLogged) {
+    const count = daysBetween(STREAK_START, today) + 1;
+    localStorage.setItem(STREAK_KEY, today);
+    localStorage.setItem(STREAK_COUNT_KEY, count);
+    return { count, broken: false, loggedToday: true };
+  }
+
+  const diff = daysBetween(lastLogged, today);
+  if (diff === 0) return { count: savedCount, broken: false, loggedToday: true };
+  if (diff === 1) return { count: savedCount, broken: false, loggedToday: false };
+  return { count: 0, broken: true, loggedToday: false };
+}
+
+function logToday() {
+  const today = todayStr();
+  const current = loadStreak();
+  if (current.loggedToday && !current.broken) return current;
+  const newCount = current.broken ? 1 : current.count + 1;
+  localStorage.setItem(STREAK_KEY, today);
+  localStorage.setItem(STREAK_COUNT_KEY, newCount);
+  return { count: newCount, broken: false, loggedToday: true };
+}
+
+function logTodayManual() {
+  const result = logToday();
+  renderStreak(result);
+}
+
+function renderStreak(state) {
+  const banner  = document.getElementById('streak-banner');
+  const countEl = document.getElementById('streak-count');
+  const btn     = document.getElementById('streak-log-btn');
+  const sinceEl = document.getElementById('streak-since-date');
+  const flame   = document.getElementById('streak-flame');
+
+  countEl.innerHTML = (state.broken ? 0 : state.count) + '<span>days</span>';
+
+  if (state.broken) {
+    banner.classList.add('streak-broken');
+    flame.textContent = '\u{1F4A7}';
+    sinceEl.textContent = 'Streak broken';
+    btn.textContent = 'Restart';
+    btn.classList.remove('logged');
+  } else {
+    banner.classList.remove('streak-broken');
+    flame.textContent = '\u{1F525}';
+    sinceEl.textContent = formatStreakDate(STREAK_START);
+    if (state.loggedToday) {
+      btn.textContent = '\u2713 Logged';
+      btn.classList.add('logged');
+    } else {
+      btn.textContent = 'Log Today';
+      btn.classList.remove('logged');
+    }
+  }
+}
+
+function initStreak() {
+  renderStreak(loadStreak());
+}
+
+// Wrap endSession to auto-log on completion
+const _endSessionOrig = endSession;
+endSession = function() {
+  _endSessionOrig();
+  renderStreak(logToday());
+};
+
+// ============================================================
 // INIT
 // ============================================================
 syncSummary();
 requestWakeLock();
+initStreak();
 
 // Prevent default touch behaviors
 document.addEventListener('touchmove', e => {
