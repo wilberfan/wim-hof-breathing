@@ -906,6 +906,125 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
   pointer-events: none;
 }
 
+/* Metro Interval Slider */
+.metro-interval-wrap {
+  margin-top: 12px;
+}
+.metro-interval-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.metro-interval-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.metro-interval-val {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 1.1rem;
+  color: var(--accent);
+}
+.metro-interval-val small {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  margin-left: 3px;
+}
+
+/* Range slider styled for dark theme */
+.metro-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface3);
+  outline: none;
+  margin-bottom: 6px;
+}
+.metro-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px rgba(0,201,255,0.4);
+  border: 2px solid var(--bg);
+}
+.metro-slider::-moz-range-thumb {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+
+.metro-tick-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.metro-tick {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.metro-mode-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+}
+.metro-mode-btn {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--text-dim);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+}
+.metro-mode-btn.active {
+  background: var(--accent2);
+  color: var(--accent);
+  border-color: var(--accent2);
+}
+.metro-mode-btn:active { transform: scale(0.96); }
+
+.metro-live-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1px solid var(--accent2);
+  background: var(--surface2);
+  color: var(--accent);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.metro-live-btn.running {
+  background: var(--accent2);
+  box-shadow: 0 0 12px rgba(0,201,255,0.2);
+  animation: pulse-border 1.2s ease-in-out infinite;
+}
+.metro-live-btn:active { transform: scale(0.97); }
+
 /* Preview & Upload */
 .preview-row {
   display: flex;
@@ -1198,6 +1317,47 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
           <button class="preview-btn" id="prev-metro-heartbeat" onclick="previewMetro('heartbeat')">▶ Heartbeat</button>
           <button class="preview-btn" id="prev-metro-soft" onclick="previewMetro('soft')">▶ Soft Tone</button>
         </div>
+
+        <div class="divider"></div>
+        <div class="metro-interval-wrap">
+          <div class="metro-interval-header">
+            <span class="metro-interval-label">Beat Interval</span>
+            <span class="metro-interval-val" id="metro-interval-display">2.0<small>sec</small></span>
+          </div>
+
+          <!-- Mode: pace-linked vs manual -->
+          <div class="metro-mode-row">
+            <button class="metro-mode-btn active" id="metro-mode-pace" onclick="setMetroMode('pace')">Follow Pace</button>
+            <button class="metro-mode-btn" id="metro-mode-manual" onclick="setMetroMode('manual')">Manual</button>
+          </div>
+
+          <!-- Manual interval slider (hidden when following pace) -->
+          <div id="metro-manual-wrap" style="display:none;margin-top:12px;">
+            <input type="range" class="metro-slider" id="metro-slider"
+              min="5" max="40" step="1" value="20"
+              oninput="onMetroSliderInput(this.value)"
+              onchange="onMetroSliderChange(this.value)">
+            <div class="metro-tick-row">
+              <span class="metro-tick">0.5s</span>
+              <span class="metro-tick">1s</span>
+              <span class="metro-tick">1.5s</span>
+              <span class="metro-tick">2s</span>
+              <span class="metro-tick">2.5s</span>
+              <span class="metro-tick">3s</span>
+              <span class="metro-tick">3.5s</span>
+              <span class="metro-tick">4s</span>
+            </div>
+            <!-- Fine-tune half-second step buttons -->
+            <div style="display:flex;gap:8px;margin-top:10px;">
+              <button class="spin-btn" style="width:44px;height:44px;font-size:1.2rem;" onclick="nudgeMetro(-5)">−</button>
+              <div style="flex:1;text-align:center;padding-top:8px;font-size:0.7rem;color:var(--text-dim);letter-spacing:0.1em;">½ second steps</div>
+              <button class="spin-btn" style="width:44px;height:44px;font-size:1.2rem;" onclick="nudgeMetro(5)">+</button>
+            </div>
+            <!-- Live preview toggle -->
+            <button class="metro-live-btn" id="metro-live-btn" onclick="toggleMetroLive()">▶ Live Preview</button>
+          </div>
+        </div>
+
         <div class="divider"></div>
         <div class="card-label" style="margin-bottom:6px;">Custom Metronome Sound</div>
         <div class="upload-area" id="upload-metro-area">
@@ -1644,6 +1804,7 @@ function setPace(p) {
   ['slower','regular','faster'].forEach(x =>
     document.getElementById('pace-'+x).classList.toggle('active', x===p));
   document.getElementById('pace-detail').textContent = PACE[p].label;
+  updateMetroDisplay();
 }
 
 function setMetroSound(t) {
@@ -1791,6 +1952,7 @@ function startRound(r) {
   document.getElementById('st-round').textContent = r+1;
   updateDot('sess-dots', r, 'curr');
   setPhase('breathing');
+  startSessionMetro();
   doBreathing(r);
 }
 
@@ -1822,7 +1984,7 @@ function doBreathing(r) {
     // Inhale
     animClass('anim-inhale');
     document.getElementById('ci-phase').textContent = 'INHALE';
-    playMetro();
+    playMetro(true); // fromBreathLoop — suppressed in manual metro mode
     playInhale(pace.in);
 
     sess.currentTimer = setTimeout(() => {
@@ -1945,6 +2107,7 @@ function doTransition(nextR) {
 function endSession() {
   sess.running = false;
   clearInterval(sess.elapsedTimer);
+  stopSessionMetro();
   releaseWakeLock();
 
   const totalSec = Math.floor((Date.now() - sess.sessionStart)/1000);
@@ -1969,6 +2132,7 @@ function togglePause() {
 function stopSession() {
   sess.running = false;
   clearInterval(sess.elapsedTimer);
+  stopSessionMetro();
   releaseWakeLock();
   resetSession();
 }
@@ -2083,6 +2247,115 @@ function previewCustom(key) {
   playCustomBuffer(key);
 }
 
+// ============================================================
+// METRONOME INTERVAL CONTROL
+// ============================================================
+// metroIntervalMs: how many ms between beats
+// mode: 'pace' = follow breath pace, 'manual' = user-set
+let metroMode = 'pace';
+let metroIntervalMs = 2000; // default 2s
+let metroLiveTimer = null;
+let metroLiveRunning = false;
+
+function getMetroInterval() {
+  if (metroMode === 'pace') {
+    const pace = PACE[S.pace];
+    return pace.in; // beat on each inhale
+  }
+  return metroIntervalMs;
+}
+
+function sliderToMs(val) {
+  // slider: 5..40, steps of 1 = 0.5s..4.0s in 0.5s steps
+  return Math.round(val) * 100; // e.g. val=20 → 2000ms
+}
+
+function msToSlider(ms) {
+  return Math.round(ms / 100);
+}
+
+function formatIntervalDisplay(ms) {
+  return (ms / 1000).toFixed(1);
+}
+
+function setMetroMode(mode) {
+  metroMode = mode;
+  document.getElementById('metro-mode-pace').classList.toggle('active', mode === 'pace');
+  document.getElementById('metro-mode-manual').classList.toggle('active', mode === 'manual');
+  document.getElementById('metro-manual-wrap').style.display = mode === 'manual' ? 'block' : 'none';
+  updateMetroDisplay();
+  if (mode === 'pace') stopMetroLive();
+}
+
+function updateMetroDisplay() {
+  const ms = getMetroInterval();
+  const el = document.getElementById('metro-interval-display');
+  if (el) el.innerHTML = formatIntervalDisplay(ms) + '<small>sec</small>';
+}
+
+function onMetroSliderInput(val) {
+  metroIntervalMs = sliderToMs(val);
+  updateMetroDisplay();
+  // If live preview is running, restart it with new interval
+  if (metroLiveRunning) restartMetroLive();
+}
+
+function onMetroSliderChange(val) {
+  metroIntervalMs = sliderToMs(val);
+  updateMetroDisplay();
+}
+
+function nudgeMetro(delta) {
+  // delta ±5 = ±0.5s
+  const slider = document.getElementById('metro-slider');
+  const newVal = Math.max(5, Math.min(40, parseInt(slider.value) + delta));
+  slider.value = newVal;
+  metroIntervalMs = sliderToMs(newVal);
+  updateMetroDisplay();
+  if (metroLiveRunning) restartMetroLive();
+}
+
+function toggleMetroLive() {
+  if (metroLiveRunning) stopMetroLive();
+  else startMetroLive();
+}
+
+function startMetroLive() {
+  metroLiveRunning = true;
+  const btn = document.getElementById('metro-live-btn');
+  if (btn) { btn.textContent = '■ Stop Preview'; btn.classList.add('running'); }
+  const tick = () => {
+    if (!metroLiveRunning) return;
+    playMetro();
+    metroLiveTimer = setTimeout(tick, metroIntervalMs);
+  };
+  tick();
+}
+
+function restartMetroLive() {
+  clearTimeout(metroLiveTimer);
+  if (!metroLiveRunning) return;
+  const tick = () => {
+    if (!metroLiveRunning) return;
+    playMetro();
+    metroLiveTimer = setTimeout(tick, metroIntervalMs);
+  };
+  setTimeout(tick, metroIntervalMs);
+}
+
+function stopMetroLive() {
+  metroLiveRunning = false;
+  clearTimeout(metroLiveTimer);
+  const btn = document.getElementById('metro-live-btn');
+  if (btn) { btn.textContent = '▶ Live Preview'; btn.classList.remove('running'); }
+}
+
+// Stop live preview when leaving audio tab
+document.querySelectorAll('.nav-btn').forEach(b => {
+  b.addEventListener('click', stopMetroLive);
+});
+
+// ============================================================
 // Preview built-in metronome sounds
 let previewMetroTimer = null;
 function previewMetro(type) {
@@ -2097,14 +2370,13 @@ function previewMetro(type) {
   S.metroSound = type;
   document.getElementById('tog-metro').checked = true;
 
-  // Play 4 beats
+  // Play 4 beats at current metro interval
   let count = 0;
-  const pace = PACE[S.pace];
-  const interval = (pace.in + pace.out) / 2;
+  const interval = Math.min(getMetroInterval(), 900);
   const tick = () => {
     playMetro();
     count++;
-    if (count < 4) previewMetroTimer = setTimeout(tick, Math.min(interval, 800));
+    if (count < 4) previewMetroTimer = setTimeout(tick, interval);
     else {
       previewMetroTimer = setTimeout(() => {
         if (btn) btn.classList.remove('playing');
@@ -2226,6 +2498,37 @@ if ('serviceWorker' in navigator) {
 // DEEP LINK
 // ============================================================
 if (location.hash === '#session') showPanel('session');
+
+// ============================================================
+// SESSION METRO TIMER (manual interval mode)
+// ============================================================
+let sessionMetroTimer = null;
+
+function startSessionMetro() {
+  stopSessionMetro();
+  if (metroMode !== 'manual') return; // pace mode: metro fires inside breath loop
+  if (!document.getElementById('tog-metro').checked) return;
+  const tick = () => {
+    if (!sess.running || sess.paused) { sessionMetroTimer = setTimeout(tick, 200); return; }
+    playMetro();
+    sessionMetroTimer = setTimeout(tick, metroIntervalMs);
+  };
+  tick();
+}
+
+function stopSessionMetro() {
+  clearTimeout(sessionMetroTimer);
+  sessionMetroTimer = null;
+}
+
+// When in manual mode, suppress the per-breath playMetro call in doBreathing
+// by checking metroMode inside the breathing loop.
+// We patch this by wrapping playMetro at call site using a flag:
+const _sessionPlayMetro = playMetro;
+playMetro = function(fromBreathLoop) {
+  if (fromBreathLoop && metroMode === 'manual') return; // manual mode uses its own timer
+  _sessionPlayMetro();
+};
 
 // ============================================================
 // STREAK TRACKER
