@@ -2,7 +2,8 @@
   "name": "Wim Hof Breathing",
   "short_name": "WimHof",
   "description": "Guided Wim Hof breathing method with customizable rounds, hold timers, audio cues, and voice prompts.",
-  "start_url": "/index.html",
+  "start_url": "/wim-hof-breathing/",
+  "scope": "/wim-hof-breathing/",
   "display": "standalone",
   "background_color": "#050a0f",
   "theme_color": "#00c9ff",
@@ -10,13 +11,13 @@
   "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "/wim-hof-breathing/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "/wim-hof-breathing/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -27,7 +28,7 @@
       "name": "Start Session",
       "short_name": "Start",
       "description": "Jump directly to a breathing session",
-      "url": "/index.html#session"
+      "url": "/wim-hof-breathing/#session"
     }
   ]
 }
