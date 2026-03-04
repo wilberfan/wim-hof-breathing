@@ -1,9 +1,10 @@
-const CACHE_NAME = 'wimhof-v1';
+const CACHE_NAME = 'wimhof-v3';
 const ASSETS = [
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/wim-hof-breathing/',
+  '/wim-hof-breathing/index.html',
+  '/wim-hof-breathing/manifest.json',
+  '/wim-hof-breathing/icons/icon-192.png',
+  '/wim-hof-breathing/icons/icon-512.png'
 ];
 
 self.addEventListener('install', e => {
