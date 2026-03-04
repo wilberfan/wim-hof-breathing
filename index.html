@@ -1120,6 +1120,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
 </style>
 </head>
 <body>
+<!-- DEBUG OVERLAY — remove before final release -->
+<div id="debug-overlay" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;max-height:180px;overflow-y:auto;">
+  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+    <strong style="color:#0ff;">DEBUG LOG</strong>
+    <button onclick="document.getElementById('debug-log').innerHTML=''" style="background:none;border:1px solid #0f0;color:#0f0;padding:2px 6px;font-size:10px;cursor:pointer;">Clear</button>
+  </div>
+  <div id="debug-log"></div>
+</div>
+<button id="debug-toggle-btn" onclick="toggleDebug()" style="position:fixed;bottom:4px;right:4px;z-index:10000;background:#111;border:1px solid #0f0;color:#0f0;font-size:10px;padding:4px 8px;border-radius:4px;opacity:0.7;">DBG</button>
 
 <!-- BLANK SCREEN OVERLAY -->
 <div id="blank-overlay" onclick="hideBlank()">
@@ -1503,10 +1512,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
         <div class="check-grid">
           <label class="check-row"><input type="checkbox" id="voice-start" checked><span class="check-label">Session start</span></label>
           <label class="check-row"><input type="checkbox" id="voice-round" checked><span class="check-label">Round number</span></label>
-          <label class="check-row"><input type="checkbox" id="voice-10" checked><span class="check-label">10 breaths left</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-10" checked><span class="check-label">Last 10 breaths</span></label>
           <label class="check-row"><input type="checkbox" id="voice-5" checked><span class="check-label">5 breaths left</span></label>
-          <label class="check-row"><input type="checkbox" id="voice-3" checked><span class="check-label">3 breaths left</span></label>
-          <label class="check-row"><input type="checkbox" id="voice-hold" checked><span class="check-label">Start hold</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-3" checked><span class="check-label">Last 3 breaths</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-exhale" checked><span class="check-label">Exhale cue</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-hold" checked><span class="check-label">Start breath hold</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-hold-dur" checked><span class="check-label">Hold duration</span></label>
           <label class="check-row"><input type="checkbox" id="voice-hold-count" checked><span class="check-label">Hold countdown</span></label>
           <label class="check-row"><input type="checkbox" id="voice-rec" checked><span class="check-label">Recovery hold</span></label>
           <label class="check-row"><input type="checkbox" id="voice-complete" checked><span class="check-label">Session complete</span></label>
@@ -1701,7 +1712,7 @@ function handleWakelock(on) {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && document.getElementById('tog-wakelock').checked) {
+  if (document.visibilityState === 'visible' && chk('tog-wakelock')) {
     requestWakeLock();
   }
 });
@@ -1762,7 +1773,7 @@ function noise(filterFreqStart, filterFreqEnd, Q, vol, dur, filterType='bandpass
 }
 
 function playMetro() {
-  if (!document.getElementById('tog-metro').checked) return;
+  if (!chk('tog-metro')) return;
   const ctx = getCtx();
   if (S.metroSound === 'click') {
     const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate*0.04), ctx.sampleRate);
@@ -1791,7 +1802,7 @@ function playMetro() {
 // accent=false → ghost stroke  (very soft, higher, quick decay)
 function frameDrumHit(offsetMs, accent) {
   const id = setTimeout(() => {
-    if (!document.getElementById('tog-metro').checked) return;
+    if (!chk('tog-metro')) return;
     const ctx = getCtx();
     const t = ctx.currentTime;
 
@@ -1868,7 +1879,7 @@ function playCompletion() {
 }
 
 function playInhale(durMs) {
-  if (!document.getElementById('tog-breath').checked) return;
+  if (!chk('tog-breath')) return;
   const d = durMs/1000;
   if (S.breathSound === 'ocean') noise(280, 750, 2, 0.12, d);
   else if (S.breathSound === 'wind') noise(600, 1400, 0.6, 0.1, d);
@@ -1876,7 +1887,7 @@ function playInhale(durMs) {
 }
 
 function playExhale(durMs) {
-  if (!document.getElementById('tog-breath').checked) return;
+  if (!chk('tog-breath')) return;
   const d = durMs/1000;
   if (S.breathSound === 'ocean') noise(700, 250, 2, 0.1, d);
   else if (S.breathSound === 'wind') noise(1200, 600, 0.6, 0.08, d);
@@ -1957,8 +1968,29 @@ function previewVoice() {
 const speechQueue = [];
 let isSpeaking = false;
 
+function chk(id) {
+  const el = document.getElementById(id);
+  return el ? el.checked : false;
+}
+
+function dbg(msg) {
+  const log = document.getElementById('debug-log');
+  if (!log) return;
+  const t = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const line = document.createElement('div');
+  line.textContent = t + ' ' + msg;
+  log.insertBefore(line, log.firstChild);
+  // Keep last 30 lines
+  while (log.children.length > 30) log.removeChild(log.lastChild);
+}
+
+function toggleDebug() {
+  const el = document.getElementById('debug-overlay');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
 function speak(text) {
-  if (!document.getElementById('tog-voice').checked) return;
+  if (!chk('tog-voice')) return;
   if (!window.speechSynthesis) return;
   // Don't queue duplicates
   if (speechQueue[speechQueue.length - 1] === text) return;
@@ -1975,9 +2007,10 @@ function processSpeechQueue() {
   u.rate   = parseFloat(document.getElementById('voice-rate').value  || 0.85);
   u.pitch  = parseFloat(document.getElementById('voice-pitch').value || 1.05);
   u.volume = 0.95;
-  u.onend  = () => { isSpeaking = false; processSpeechQueue(); };
-  u.onerror = () => { isSpeaking = false; processSpeechQueue(); };
+  u.onend  = () => { dbg('END: "' + text + '"'); isSpeaking = false; processSpeechQueue(); };
+  u.onerror = (e) => { dbg('ERR: "' + text + '" err=' + e.error); isSpeaking = false; processSpeechQueue(); };
   isSpeaking = true;
+  dbg('SPEAK: "' + text + '" voice=' + (selectedVoice ? selectedVoice.name : 'default'));
   window.speechSynthesis.speak(u);
 }
 
@@ -2102,7 +2135,7 @@ let sess = {
 
 function startSession() {
   getCtx(); // unlock audio on iOS/Android
-  if (document.getElementById('tog-wakelock').checked) requestWakeLock();
+  if (chk('tog-wakelock')) requestWakeLock();
 
   sess = {
     running: true, paused: false,
@@ -2174,14 +2207,16 @@ function doBreathing(r) {
   const pace = PACE[S.pace];
   let said10 = false, said5 = false, said3 = false;
 
+  dbg('startRound r=' + r + ' voice=' + chk('tog-voice') + ' synth=' + (!!window.speechSynthesis) + ' voices=' + (window.speechSynthesis ? window.speechSynthesis.getVoices().length : 0));
+
   // Round announcement
-  if (document.getElementById('voice-round').checked) {
-    if (r === 0 && document.getElementById('voice-start').checked) {
-      speak('Begin.');
+  if (chk('voice-round')) {
+    if (r === 0 && chk('voice-start')) {
+      dbg('voice-start checked, saying Begin'); speak('Begin.');
     } else {
       speak('Round ' + (r + 1) + '. Begin.');
     }
-  } else if (r === 0 && document.getElementById('voice-start').checked) {
+  } else if (r === 0 && chk('voice-start')) {
     speak('Begin.');
   }
 
@@ -2196,13 +2231,13 @@ function doBreathing(r) {
     setCircle('ROUND ' + (r+1), remaining, 'BREATHS LEFT', remaining/total, 'cold');
 
     // Voice countdowns
-    if (remaining === 10 && !said10 && document.getElementById('voice-10').checked) {
+    if (remaining === 10 && !said10 && chk('voice-10')) {
       speak('Last 10 breaths.'); said10 = true;
     }
-    if (remaining === 5 && !said5 && document.getElementById('voice-5').checked) {
+    if (remaining === 5 && !said5 && chk('voice-5')) {
       speak('5 breaths remaining.'); said5 = true;
     }
-    if (remaining === 3 && !said3 && document.getElementById('voice-3').checked) {
+    if (remaining === 3 && !said3 && chk('voice-3')) {
       speak('Last 3 breaths.'); said3 = true;
     }
 
@@ -2219,7 +2254,7 @@ function doBreathing(r) {
       document.getElementById('ci-phase').textContent = 'EXHALE';
       playExhale(pace.out);
       // Exhale cue on last 3 breaths only
-      if (document.getElementById('voice-exhale') && document.getElementById('voice-exhale').checked) {
+      if (document.getElementById('voice-exhale') && chk('voice-exhale')) {
         if ((total - n) <= 3) speak('Exhale.');
       }
 
@@ -2243,11 +2278,12 @@ function doHold(r) {
   if (retDur > sess.maxHold) sess.maxHold = retDur;
 
   const retDurAnnounce = retDur; // capture for closure
-  if (document.getElementById('voice-hold').checked) {
+  dbg('doHold: voice-hold=' + chk('voice-hold') + ' retDur=' + retDur);
+  if (chk('voice-hold')) {
     speak('Start breath hold.');
   }
   // Small delay so hold prompt finishes before duration is announced
-  if (document.getElementById('voice-hold-dur').checked) {
+  if (chk('voice-hold-dur')) {
     setTimeout(() => {
       if (!sess.running) return;
       const mins = Math.floor(retDurAnnounce / 60);
@@ -2278,12 +2314,12 @@ function doHold(r) {
     setCircle('BREATH HOLD', rem, 'HOLD', rem/retDur, 'warm');
     document.getElementById('st-breath').textContent = '—';
 
-    if (document.getElementById('tog-bell').checked) {
+    if (chk('tog-bell')) {
       bells.forEach(iv => {
         if (elapsed > 0 && elapsed % iv === 0 && !announced.has(elapsed)) {
           announced.add(elapsed);
           playBell();
-          if (document.getElementById('voice-hold-count').checked) {
+          if (chk('voice-hold-count')) {
             const rem2 = retDur - elapsed;
             speak(rem2 > 0 ? rem2 + ' seconds remaining.' : 'Time.');
           }
@@ -2304,12 +2340,12 @@ function doRecovery(r) {
   setPhase('recovery');
   animClass('');
   playBell();
-  if (document.getElementById('voice-rec').checked) {
+  if (chk('voice-rec')) {
     const recSecs = S.recovery;
     speak('Deep breath in.');
     setTimeout(() => {
       if (!sess.running) return;
-      if (document.getElementById('voice-rec').checked) {
+      if (chk('voice-rec')) {
         speak('And hold for ' + recSecs + ' seconds.');
       }
     }, 2000);
@@ -2340,7 +2376,7 @@ function doTransition(nextR) {
   if (!sess.running) return;
   setPhase('transition');
 
-  if (document.getElementById('voice-rec') && document.getElementById('voice-rec').checked) {
+  if (document.getElementById('voice-rec') && chk('voice-rec')) {
     speak('Exhale. Rest and breathe normally.');
     setTimeout(() => {
       if (!sess.running) return;
@@ -2386,7 +2422,7 @@ function endSession() {
   document.getElementById('complete-screen').style.alignItems = 'center';
 
   playCompletion();
-  if (document.getElementById('voice-complete').checked) speak('Session complete. Well done.');
+  if (chk('voice-complete')) speak('Session complete. Well done.');
 }
 
 function togglePause() {
@@ -2635,7 +2671,7 @@ function previewMetro(type) {
 
   const origSound = S.metroSound;
   S.metroSound = type;
-  document.getElementById('tog-metro').checked = true;
+  chk('tog-metro') = true;
 
   // Play 4 beats at current metro interval
   let count = 0;
@@ -2659,7 +2695,7 @@ function previewBreath(type) {
   getCtx();
   const orig = S.breathSound;
   S.breathSound = type;
-  document.getElementById('tog-breath').checked = true;
+  chk('tog-breath') = true;
   playInhale(1800);
   setTimeout(() => {
     playExhale(1400);
@@ -2728,7 +2764,7 @@ function showBlank() {
 }
 function hideBlank() {
   document.getElementById('blank-overlay').classList.remove('show');
-  document.getElementById('tog-blank').checked = false;
+  chk('tog-blank') = false;
 }
 
 // ============================================================
@@ -2802,7 +2838,7 @@ let sessionMetroTimer = null;
 function startSessionMetro() {
   stopSessionMetro();
   if (metroMode !== 'manual') return; // pace mode: metro fires inside breath loop
-  if (!document.getElementById('tog-metro').checked) return;
+  if (!chk('tog-metro')) return;
   const tick = () => {
     if (!sess.running || sess.paused) { sessionMetroTimer = setTimeout(tick, 200); return; }
     playMetro();
