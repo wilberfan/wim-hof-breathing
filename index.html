@@ -1953,16 +1953,38 @@ function previewVoice() {
   speak("Breathe in. Hold. Release.");
 }
 
+// Speech queue — prevents cancel() stalling Android Chrome
+const speechQueue = [];
+let isSpeaking = false;
+
 function speak(text) {
   if (!document.getElementById('tog-voice').checked) return;
   if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
+  // Don't queue duplicates
+  if (speechQueue[speechQueue.length - 1] === text) return;
+  speechQueue.push(text);
+  processSpeechQueue();
+}
+
+function processSpeechQueue() {
+  if (isSpeaking || speechQueue.length === 0) return;
+  if (!window.speechSynthesis) return;
+  const text = speechQueue.shift();
   const u = new SpeechSynthesisUtterance(text);
   if (selectedVoice) u.voice = selectedVoice;
-  u.rate  = parseFloat(document.getElementById('voice-rate').value  || 0.85);
-  u.pitch = parseFloat(document.getElementById('voice-pitch').value || 1.05);
+  u.rate   = parseFloat(document.getElementById('voice-rate').value  || 0.85);
+  u.pitch  = parseFloat(document.getElementById('voice-pitch').value || 1.05);
   u.volume = 0.95;
+  u.onend  = () => { isSpeaking = false; processSpeechQueue(); };
+  u.onerror = () => { isSpeaking = false; processSpeechQueue(); };
+  isSpeaking = true;
   window.speechSynthesis.speak(u);
+}
+
+function clearSpeechQueue() {
+  speechQueue.length = 0;
+  isSpeaking = false;
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
 }
 
 // ============================================================
@@ -2370,12 +2392,14 @@ function endSession() {
 function togglePause() {
   sess.paused = !sess.paused;
   document.getElementById('btn-pause').textContent = sess.paused ? 'Resume' : 'Pause';
+  if (sess.paused) clearSpeechQueue();
 }
 
 function stopSession() {
   sess.running = false;
   clearInterval(sess.elapsedTimer);
   stopSessionMetro();
+  clearSpeechQueue();
   releaseWakeLock();
   resetSession();
 }
