@@ -1469,12 +1469,47 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
           </div>
           <label class="toggle"><input type="checkbox" id="tog-voice" checked><span class="toggle-slider"></span></label>
         </div>
+
         <div class="divider"></div>
+        <div class="card-label" style="margin-bottom:8px;">Voice</div>
+        <select id="voice-select" style="width:100%;padding:11px 14px;background:var(--surface2);border:1px solid var(--accent2);border-radius:10px;color:var(--accent);font-family:'Rajdhani',sans-serif;font-size:0.95rem;font-weight:600;outline:none;appearance:none;-webkit-appearance:none;cursor:pointer;">
+          <option value="">Loading voices…</option>
+        </select>
+        <div class="preview-row" style="margin-top:8px;">
+          <button class="preview-btn" onclick="previewVoice()">▶ Preview Voice</button>
+        </div>
+
+        <div class="divider"></div>
+        <div class="card-label" style="margin-bottom:8px;">Rate & Pitch</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);">Rate</span>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--accent);" id="voice-rate-val">0.85</span>
+            </div>
+            <input type="range" class="metro-slider" id="voice-rate" min="0.5" max="1.5" step="0.05" value="0.85" oninput="document.getElementById('voice-rate-val').textContent=parseFloat(this.value).toFixed(2)">
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:0.62rem;letter-spacing:0.15em;text-transform:uppercase;color:var(--text-dim);">Pitch</span>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.8rem;color:var(--accent);" id="voice-pitch-val">1.05</span>
+            </div>
+            <input type="range" class="metro-slider" id="voice-pitch" min="0.5" max="2.0" step="0.05" value="1.05" oninput="document.getElementById('voice-pitch-val').textContent=parseFloat(this.value).toFixed(2)">
+          </div>
+        </div>
+
+        <div class="divider"></div>
+        <div class="card-label" style="margin-bottom:8px;">Announce</div>
         <div class="check-grid">
-          <label class="check-row"><input type="checkbox" id="voice-10" checked><span class="check-label">Last 10 breaths</span></label>
-          <label class="check-row"><input type="checkbox" id="voice-3" checked><span class="check-label">Last 3 breaths</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-start" checked><span class="check-label">Session start</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-round" checked><span class="check-label">Round number</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-10" checked><span class="check-label">10 breaths left</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-5" checked><span class="check-label">5 breaths left</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-3" checked><span class="check-label">3 breaths left</span></label>
           <label class="check-row"><input type="checkbox" id="voice-hold" checked><span class="check-label">Start hold</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-hold-count" checked><span class="check-label">Hold countdown</span></label>
           <label class="check-row"><input type="checkbox" id="voice-rec" checked><span class="check-label">Recovery hold</span></label>
+          <label class="check-row"><input type="checkbox" id="voice-complete" checked><span class="check-label">Session complete</span></label>
         </div>
       </div>
 
@@ -1697,10 +1732,17 @@ function tone(freq, dur, type='sine', vol=0.3, attack=0.01, release=0.1) {
 
 function noise(filterFreqStart, filterFreqEnd, Q, vol, dur, filterType='bandpass') {
   const ctx = getCtx();
-  const bufLen = Math.floor(ctx.sampleRate * dur);
+  // Add a small tail so the gain fade-out finishes before the buffer stops
+  // (prevents the abrupt click at the end)
+  const tail = 0.08;
+  const bufLen = Math.floor(ctx.sampleRate * (dur + tail));
   const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
   const d = buf.getChannelData(0);
-  for (let i=0; i<bufLen; i++) d[i] = Math.random()*2-1;
+  // Apply a Hann window to the raw noise to eliminate start/end click artifacts
+  for (let i = 0; i < bufLen; i++) {
+    const w = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (bufLen - 1)));
+    d[i] = (Math.random() * 2 - 1) * w;
+  }
   const src = ctx.createBufferSource();
   const f = ctx.createBiquadFilter();
   const g = ctx.createGain();
@@ -1710,10 +1752,13 @@ function noise(filterFreqStart, filterFreqEnd, Q, vol, dur, filterType='bandpass
   f.frequency.linearRampToValueAtTime(filterFreqEnd, t + dur);
   src.buffer = buf;
   src.connect(f); f.connect(g); g.connect(ctx.destination);
-  g.gain.setValueAtTime(0, t);
-  g.gain.linearRampToValueAtTime(vol, t + dur*0.2);
-  g.gain.linearRampToValueAtTime(0, t + dur);
-  src.start(t); src.stop(t + dur);
+  // Smooth exponential envelope — no hard edges
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.15);
+  g.gain.setValueAtTime(vol, t + dur * 0.75);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur + tail * 0.8);
+  src.start(t);
+  src.stop(t + dur + tail);
 }
 
 function playMetro() {
@@ -1838,12 +1883,85 @@ function playExhale(durMs) {
   else noise(3000, 1400, 6, 0.07, d);
 }
 
+// ── Voice selection ───────────────────────────────────────────────────────────
+let selectedVoice = null;
+
+function populateVoices() {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+
+  const sel = document.getElementById('voice-select');
+  sel.innerHTML = '';
+
+  // Priority order for pleasant female voices:
+  // 1. Google US English female (Android Chrome — sounds natural)
+  // 2. Named female voices known to sound good across platforms
+  // 3. Any voice with "female" in name
+  // 4. English voices that aren't explicitly male
+  // 5. Any English voice
+  const preferred = [
+    v => /google.*us.*english.*female|google.*female.*us/i.test(v.name),
+    v => /^google.*english/i.test(v.name) && !/male/i.test(v.name),
+    v => /samantha|karen|moira|fiona|victoria|tessa|allison|susan|zira|hazel|helena|aria|jenny|sonia|nicky|ava/i.test(v.name),
+    v => /female|woman/i.test(v.name),
+    v => /en[-_]US|en[-_]GB|en[-_]AU/i.test(v.lang) && !/male/i.test(v.name),
+    v => /en/i.test(v.lang),
+  ];
+
+  // Sort: preferred categories first
+  const sorted = [...voices].sort((a, b) => {
+    const rankA = preferred.findIndex(fn => fn(a));
+    const rankB = preferred.findIndex(fn => fn(b));
+    const ra = rankA === -1 ? 99 : rankA;
+    const rb = rankB === -1 ? 99 : rankB;
+    return ra - rb;
+  });
+
+  sorted.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = v.name + ' (' + v.lang + ')';
+    opt.dataset.voiceIndex = voices.indexOf(v);
+    sel.appendChild(opt);
+  });
+
+  // Auto-select best candidate (first in sorted list that is English)
+  const bestIdx = sorted.findIndex(v => /en/i.test(v.lang));
+  sel.selectedIndex = bestIdx >= 0 ? bestIdx : 0;
+  applySelectedVoice();
+}
+
+function applySelectedVoice() {
+  const sel = document.getElementById('voice-select');
+  const opt = sel.options[sel.selectedIndex];
+  if (!opt) return;
+  const voices = window.speechSynthesis.getVoices();
+  const idx = parseInt(opt.dataset.voiceIndex);
+  selectedVoice = voices[idx] || null;
+}
+
+document.getElementById('voice-select').addEventListener('change', applySelectedVoice);
+
+// Voices load asynchronously on some browsers
+if (window.speechSynthesis) {
+  window.speechSynthesis.onvoiceschanged = populateVoices;
+  // Also try immediately (Chrome desktop returns voices sync)
+  setTimeout(populateVoices, 100);
+}
+
+function previewVoice() {
+  speak("Breathe in. Hold. Release.");
+}
+
 function speak(text) {
   if (!document.getElementById('tog-voice').checked) return;
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.82; u.volume = 0.95;
+  if (selectedVoice) u.voice = selectedVoice;
+  u.rate  = parseFloat(document.getElementById('voice-rate').value  || 0.85);
+  u.pitch = parseFloat(document.getElementById('voice-pitch').value || 1.05);
+  u.volume = 0.95;
   window.speechSynthesis.speak(u);
 }
 
@@ -2032,7 +2150,18 @@ function doBreathing(r) {
   const total = S.breaths;
   let n = 0;
   const pace = PACE[S.pace];
-  let said10 = false, said3 = false;
+  let said10 = false, said5 = false, said3 = false;
+
+  // Round announcement
+  if (document.getElementById('voice-round').checked) {
+    if (r === 0 && document.getElementById('voice-start').checked) {
+      speak('Begin.');
+    } else {
+      speak('Round ' + (r + 1) + '. Begin.');
+    }
+  } else if (r === 0 && document.getElementById('voice-start').checked) {
+    speak('Begin.');
+  }
 
   const nextBreath = () => {
     if (!sess.running) return;
@@ -2044,12 +2173,15 @@ function doBreathing(r) {
     document.getElementById('st-breath').textContent = n+1;
     setCircle('ROUND ' + (r+1), remaining, 'BREATHS LEFT', remaining/total, 'cold');
 
-    // Voice
+    // Voice countdowns
     if (remaining === 10 && !said10 && document.getElementById('voice-10').checked) {
-      speak('Last 10 breaths'); said10 = true;
+      speak('Last 10 breaths.'); said10 = true;
+    }
+    if (remaining === 5 && !said5 && document.getElementById('voice-5').checked) {
+      speak('5 breaths remaining.'); said5 = true;
     }
     if (remaining === 3 && !said3 && document.getElementById('voice-3').checked) {
-      speak('Last 3 breaths'); said3 = true;
+      speak('Last 3 breaths.'); said3 = true;
     }
 
     // Inhale
@@ -2064,6 +2196,10 @@ function doBreathing(r) {
       animClass('anim-exhale');
       document.getElementById('ci-phase').textContent = 'EXHALE';
       playExhale(pace.out);
+      // Exhale cue on last 3 breaths only
+      if (document.getElementById('voice-exhale') && document.getElementById('voice-exhale').checked) {
+        if ((total - n) <= 3) speak('Exhale.');
+      }
 
       sess.currentTimer = setTimeout(() => {
         n++;
@@ -2084,7 +2220,23 @@ function doHold(r) {
   const retDur = S.retention + S.retentionInc * r;
   if (retDur > sess.maxHold) sess.maxHold = retDur;
 
-  if (document.getElementById('voice-hold').checked) speak('Start breath hold');
+  const retDurAnnounce = retDur; // capture for closure
+  if (document.getElementById('voice-hold').checked) {
+    speak('Start breath hold.');
+  }
+  // Small delay so hold prompt finishes before duration is announced
+  if (document.getElementById('voice-hold-dur').checked) {
+    setTimeout(() => {
+      if (!sess.running) return;
+      const mins = Math.floor(retDurAnnounce / 60);
+      const secs = retDurAnnounce % 60;
+      let durText = '';
+      if (mins > 0 && secs > 0) durText = `${mins} minute${mins>1?'s':''} and ${secs} seconds.`;
+      else if (mins > 0) durText = `${mins} minute${mins>1?'s':''}.`;
+      else durText = `${retDurAnnounce} seconds.`;
+      speak('Hold for ' + durText);
+    }, 1800);
+  }
   playBell();
 
   let elapsed = 0;
@@ -2109,7 +2261,10 @@ function doHold(r) {
         if (elapsed > 0 && elapsed % iv === 0 && !announced.has(elapsed)) {
           announced.add(elapsed);
           playBell();
-          speak(elapsed + ' seconds');
+          if (document.getElementById('voice-hold-count').checked) {
+            const rem2 = retDur - elapsed;
+            speak(rem2 > 0 ? rem2 + ' seconds remaining.' : 'Time.');
+          }
         }
       });
     }
@@ -2127,7 +2282,16 @@ function doRecovery(r) {
   setPhase('recovery');
   animClass('');
   playBell();
-  if (document.getElementById('voice-rec').checked) speak('Recovery hold. Breathe in and hold.');
+  if (document.getElementById('voice-rec').checked) {
+    const recSecs = S.recovery;
+    speak('Deep breath in.');
+    setTimeout(() => {
+      if (!sess.running) return;
+      if (document.getElementById('voice-rec').checked) {
+        speak('And hold for ' + recSecs + ' seconds.');
+      }
+    }, 2000);
+  }
 
   let elapsed = 0;
   const total = S.recovery;
@@ -2153,6 +2317,14 @@ function doRecovery(r) {
 function doTransition(nextR) {
   if (!sess.running) return;
   setPhase('transition');
+
+  if (document.getElementById('voice-rec') && document.getElementById('voice-rec').checked) {
+    speak('Exhale. Rest and breathe normally.');
+    setTimeout(() => {
+      if (!sess.running) return;
+      if (S.transition >= 5) speak('Next round in ' + S.transition + ' seconds.');
+    }, 2500);
+  }
 
   if (S.transition === 0) { startRound(nextR); return; }
 
@@ -2192,7 +2364,7 @@ function endSession() {
   document.getElementById('complete-screen').style.alignItems = 'center';
 
   playCompletion();
-  speak('Session complete. Well done.');
+  if (document.getElementById('voice-complete').checked) speak('Session complete. Well done.');
 }
 
 function togglePause() {
@@ -2562,7 +2734,35 @@ window.addEventListener('appinstalled', () => {
 // SERVICE WORKER
 // ============================================================
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Clear all old caches and force fresh load on every deploy
+  const CURRENT_VERSION = 'wimhof-v4';
+  
+  // Unregister stale service workers, then re-register
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    const stale = regs.filter(r => !r.active || !r.active.scriptURL.includes('sw.js'));
+    return Promise.all(stale.map(r => r.unregister()));
+  }).then(() => {
+    return navigator.serviceWorker.register('sw.js');
+  }).then(reg => {
+    // Force the new SW to activate immediately
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          // New version available — reload to get fresh files
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(() => {});
+
+  // Also nuke any old caches directly from the page
+  caches.keys().then(keys => {
+    keys.forEach(key => {
+      if (key !== CURRENT_VERSION) caches.delete(key);
+    });
+  });
 }
 
 // ============================================================
