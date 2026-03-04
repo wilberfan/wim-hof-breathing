@@ -2734,7 +2734,35 @@ window.addEventListener('appinstalled', () => {
 // SERVICE WORKER
 // ============================================================
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  // Clear all old caches and force fresh load on every deploy
+  const CURRENT_VERSION = 'wimhof-v4';
+  
+  // Unregister stale service workers, then re-register
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    const stale = regs.filter(r => !r.active || !r.active.scriptURL.includes('sw.js'));
+    return Promise.all(stale.map(r => r.unregister()));
+  }).then(() => {
+    return navigator.serviceWorker.register('sw.js');
+  }).then(reg => {
+    // Force the new SW to activate immediately
+    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          // New version available — reload to get fresh files
+          window.location.reload();
+        }
+      });
+    });
+  }).catch(() => {});
+
+  // Also nuke any old caches directly from the page
+  caches.keys().then(keys => {
+    keys.forEach(key => {
+      if (key !== CURRENT_VERSION) caches.delete(key);
+    });
+  });
 }
 
 // ============================================================
