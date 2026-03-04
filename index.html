@@ -1120,15 +1120,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); background
 </style>
 </head>
 <body>
-<!-- DEBUG OVERLAY — remove before final release -->
-<div id="debug-overlay" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:rgba(0,0,0,0.85);color:#0f0;font-family:monospace;font-size:11px;padding:8px;max-height:180px;overflow-y:auto;">
-  <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
-    <strong style="color:#0ff;">DEBUG LOG</strong>
-    <button onclick="document.getElementById('debug-log').innerHTML=''" style="background:none;border:1px solid #0f0;color:#0f0;padding:2px 6px;font-size:10px;cursor:pointer;">Clear</button>
-  </div>
-  <div id="debug-log"></div>
-</div>
-<button id="debug-toggle-btn" onclick="toggleDebug()" style="position:fixed;bottom:4px;right:4px;z-index:10000;background:#111;border:1px solid #0f0;color:#0f0;font-size:10px;padding:4px 8px;border-radius:4px;opacity:0.7;">DBG</button>
+<!-- DEBUG: hidden log, copy to clipboard via button -->
+<div id="debug-log" style="display:none;"></div>
+<button id="debug-copy-btn" onclick="copyDebugLog()" style="position:fixed;bottom:6px;right:6px;z-index:10000;background:#111;border:1px solid #0f0;color:#0f0;font-size:11px;padding:10px 14px;border-radius:6px;opacity:0.75;touch-action:manipulation;">📋 LOG</button>
 
 <!-- BLANK SCREEN OVERLAY -->
 <div id="blank-overlay" onclick="hideBlank()">
@@ -1984,9 +1978,17 @@ function dbg(msg) {
   while (log.children.length > 30) log.removeChild(log.lastChild);
 }
 
-function toggleDebug() {
-  const el = document.getElementById('debug-overlay');
-  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+function copyDebugLog() {
+  const log = document.getElementById('debug-log');
+  const text = log ? log.innerText : 'no log';
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('debug-copy-btn');
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 LOG', 2000);
+  }).catch(() => {
+    // Fallback: show in alert
+    alert(log ? log.innerText.slice(0, 1000) : 'empty log');
+  });
 }
 
 function speak(text) {
